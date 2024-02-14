@@ -49,40 +49,59 @@ def get_movie_comments(movie_id):
     return comments_dict
 
 
-# Streamlit app
-st.title("Movie Analyzer")
+def main():
+    st.title("Movie Analyzer")
 
-search_query = st.text_input("Enter a movie title:")
-if search_query:
-    results = search_movie(search_query)
-    if results:
-        st.write("Search Results:")
-        for i, movie in enumerate(results, 1):
-            print(movie.get("rating"))
-            title = movie.get("title", "N/A")
-            year = movie.get("year", "N/A")
-            st.write(f"{i}. {title} ({year})")
+    search_query = st.text_input("Enter a movie title:")
+    if search_query:
+        results = search_movie(search_query)
+        if results:
+            st.write("Search Results:")
+            for i, movie in enumerate(results, 1):
+                title = movie.get("title", "N/A")
+                year = movie.get("year", "N/A")
+                st.write(f"{i}. {title} ({year})")
 
-        chosen_movie_index = st.number_input(
-            "Enter the index of the movie you want to get details for:",
-            min_value=1,
-            max_value=len(results),
-        )
-        if st.button("Get Details and Comments"):
-            chosen_movie_id = results[chosen_movie_index - 1].movieID
-            title, year, genres, plot, rating = get_movie_details(chosen_movie_id)
-            st.write(f"**Title:** {title}")
-            st.write(f"**Year:** {year}")
-            st.write(f"**Genres:** {genres}")
-            st.write(f"**Plot:** {plot}")
-            st.write(f"**Rating:** {rating}")
+            chosen_movie_index = st.number_input(
+                "Enter the index of the movie you want to get details for:",
+                min_value=1,
+                max_value=len(results),
+            )
+            if st.button("Analyze the movie"):
+                chosen_movie_id = results[chosen_movie_index - 1].movieID
+                title, year, genres, plot, rating = get_movie_details(chosen_movie_id)
+                st.write(f"**Title:** {title}")
+                st.write(f"**Year:** {year}")
+                st.write(f"**Genres:** {genres}")
+                st.write(f"**Plot:** {plot}")
+                st.write(f"**Rating:** {rating}")
 
-            comments = get_movie_comments(chosen_movie_id)
-            st.write("Comments for the selected movie:")
-            for author, comment_list in comments.items():
-                st.write(f"Author: {author}")
-                for comment in comment_list:
-                    st.write(f"Comment: {comment}")
-                st.write("---")
-    else:
-        st.write("No results found for the query.")
+                try:
+                    comments = get_movie_comments(chosen_movie_id)
+                    details = {
+                        "Title": title,
+                        "Year": year,
+                        "Genres": genres,
+                        "Plot": plot,
+                        "Rating": rating,
+                    }
+                    with open("data.txt", "w") as f:
+                        f.write("Movie Details:\n")
+                        for key, value in details.items():
+                            f.write(f"{key}: {value}\n")
+                        f.write("\n")
+                        f.write("Comments:\n")
+                        for author, comment_list in comments.items():
+                            f.write(f"Author: {author}\n")
+                            for comment in comment_list:
+                                f.write(f"Comment: {comment}\n")
+                            f.write("---\n")
+                except Exception:
+                    comments = "No comments were found for this movie"
+                st.write("File saved")
+        else:
+            st.write("No results found for the query.")
+
+
+if __name__ == "__main__":
+    main()

@@ -4,6 +4,9 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.prompts import PromptTemplate
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 # The `CreateDocument` class is responsible for creating documents by loading text files from a
@@ -16,7 +19,7 @@ class CreateDocument:
         """
         from langchain_community.document_loaders import DirectoryLoader
 
-        self.loader = DirectoryLoader("data/data")
+        self.loader = DirectoryLoader("data")
 
     def create_documents(self):
         """

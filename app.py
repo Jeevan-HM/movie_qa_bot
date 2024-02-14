@@ -6,22 +6,38 @@ import logging
 
 load_dotenv()
 ia = imdb.IMDb()
-history = ""
-# Configure logging
+
+# Initialize logging
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
+history = " "
+chat_history = []
 
 
 def search_movie(query):
-    # Search for the movie
+    """Search for a movie based on the query.
+
+    Args:
+        query (str): The movie title to search for.
+
+    Returns:
+        list: A list of movie results.
+    """
     results = ia.search_movie(query)
     logging.info(f"Searching for movie with query: {query}")
     return results if results else []
 
 
 def get_movie_details(movie_id):
-    # Retrieve movie details by movie ID
+    """Retrieve details of a movie by its ID.
+
+    Args:
+        movie_id (str): The IMDb movie ID.
+
+    Returns:
+        tuple: A tuple containing movie details (title, year, genres, plot, rating).
+    """
     movie = ia.get_movie(movie_id)
     title = movie.get("title", "N/A")
     year = movie.get("year", "N/A")
@@ -33,7 +49,14 @@ def get_movie_details(movie_id):
 
 
 def get_movie_comments(movie_id):
-    # Retrieve movie reviews by movie ID
+    """Retrieve comments/reviews of a movie by its ID.
+
+    Args:
+        movie_id (str): The IMDb movie ID.
+
+    Returns:
+        dict: A dictionary containing comments by author.
+    """
     movie = ia.get_movie(movie_id)
     reviews = ia.get_movie_reviews(movie_id)
     comments_dict = {}
@@ -47,13 +70,16 @@ def get_movie_comments(movie_id):
 
 
 def main():
+    """Main function for the Streamlit application."""
     global history
-    st.title("Movie Analyzer")
+    global chat_history
+    st.title("Movie Q&A Bot")
     chat_history = st.session_state.get("chat_history", [])
     st.session_state.submit_button_state = st.session_state.get(
         "submit_button_state", False
     )
 
+    # Initialize bot and document if not present in session state
     if "bot" not in st.session_state or "doc" not in st.session_state:
         st.session_state.bot = None
         st.session_state.doc = None
@@ -64,9 +90,6 @@ def main():
             "Submit",
             key="submit_button",
             on_click=lambda: setattr(st.session_state, "submit_button_state", True),
-        )
-        st.sidebar.write(
-            "Note: You can type 'exit' any time during the conversation to exit the conversation."
         )
 
     if st.session_state.submit_button_state:
@@ -95,6 +118,7 @@ def main():
                 logging.info("Movie details retrieved.")
 
                 try:
+                    # Retrieve comments and save to a file
                     comments = get_movie_comments(chosen_movie_id)
                     details = {
                         "Title": title,
@@ -114,6 +138,31 @@ def main():
                             for comment in comment_list:
                                 f.write(f"Comment: {comment}\n")
                             f.write("---\n")
+                    # Initialize chatbot
+                    if st.session_state.doc is None:
+                        st.session_state.doc = chatbot.CreateDocument()
+                        st.session_state.doc = st.session_state.doc.create_documents()
+                    st.session_state.bot = chatbot.RAGChain()
+                    chat_history.append(
+                        ("Enter any questions you have about the movie", "assistant")
+                    )
+                    logging.info("Document and bot initialized.")
+                except Exception as e:
+                    details = {
+                        "Title": title,
+                        "Year": year,
+                        "Genres": genres,
+                        "Plot": plot,
+                        "Rating": rating,
+                    }
+                    with open("data/data.txt", "w") as f:
+                        f.write("Movie Details:\n")
+                        for key, value in details.items():
+                            f.write(f"{key}: {value}\n")
+                        f.write("\n")
+                        f.write("Comments: No comments for found for this movie\n")
+                        f.write("---\n")
+                    logging.error(f"Error analyzing movie: {e}")
                     chat_history.append(
                         ("Enter any questions you have about the movie", "assistant")
                     )
@@ -121,15 +170,11 @@ def main():
                         st.session_state.doc = chatbot.CreateDocument()
                         st.session_state.doc = st.session_state.doc.create_documents()
                     st.session_state.bot = chatbot.RAGChain()
-                    logging.info("Document and bot initialized.")
-                except Exception as e:
-                    logging.error(f"Error analyzing movie: {e}")
 
-            prompt = st.chat_input(
-                "Enter questions about the movie:"
-            )  # Fixed prompt display
+            prompt = st.chat_input("Enter questions about the movie:")
             try:
                 if prompt:
+                    print(prompt)
                     chat_history.append((prompt, "user"))
                     bot_response = st.session_state.bot.run_rag_chain(prompt, history)
                     chat_history.append((bot_response, "assistant"))
@@ -145,13 +190,13 @@ def main():
             except Exception as e:
                 logging.error(f"Error generating bot response: {e}")
 
+            # Display chat history
             for message, sender in chat_history:
                 with st.chat_message(sender):
                     st.write(message)
     else:
         with st.chat_message("assistant"):
-            st.write("Please enter a movie title before continuing.\n", "assistant")
-
+            st.write("Please enter a movie title before continuing.\n")
 
 if __name__ == "__main__":
     main()
